@@ -20,11 +20,13 @@ from keras.optimizers import Adam
 def deleteCache(fileName):
     os.remove('tmp/' + fileName)
 
+
 # 保存Cache
 def saveCache(fileName, tmp):
     fileTmp = open('tmp/' + fileName, 'wb')
     pickle.dump(tmp, fileTmp)
     fileTmp.close()
+
 
 # 加载Cache
 def loadCache(fileName):
@@ -32,6 +34,7 @@ def loadCache(fileName):
     tmp = pickle.load(fileTmp)
     fileTmp.close()
     return tmp
+
 
 # 生成dict
 def createDict():
@@ -62,8 +65,9 @@ def createDict():
     saveCache('dict.pkl', tmp=pn)
     return pn
 
+
 # 建立rnn神经网络
-def createSimpleRNNModel(max_features=2000):
+def create_simpleRNN_model(max_features=2000):
     print('Build model...')
     model = Sequential()
     model.add(Embedding(max_features, 128))
@@ -80,6 +84,7 @@ def createSimpleRNNModel(max_features=2000):
                   optimizer='adam',
                   metrics=['accuracy'])
     return model
+
 
 # 训练model
 def trainModel(model, x_train, y_train, x_test, y_test, batch_size=20, epochs=1):
@@ -113,7 +118,7 @@ def testModel(model, x_test, y_test, batch_size=32):
 
 
 # 判断模型性能
-def checkModel(model, acc, batch_size=32):
+def check_model(model, acc, batch_size=32):
     if not os.path.exists('tmp/result.pkl'):
         print('Saving model')
         result = dict()
@@ -133,73 +138,78 @@ def checkModel(model, acc, batch_size=32):
         else:
             print('This model is not god.')
 
+
+# 生成图片数据
+def create_plt_data(model, x, y):
+    BATCH_INDEX = 0
+    BATCH_SIZE = 2000
+    acc = []
+    for step in range(500):
+        x_batch = x[BATCH_INDEX:BATCH_INDEX + BATCH_SIZE, :]
+        y_batch = y[BATCH_INDEX:BATCH_INDEX + BATCH_SIZE, :]
+        cost = model.train_on_batch(x_batch, y_batch)
+        BATCH_INDEX += BATCH_SIZE
+        BATCH_INDEX = 0 if BATCH_INDEX >= x.shape[0] else BATCH_INDEX
+        acc.append(cost[1])
+        # if step % 50 == 0:
+        #     print(cost[1])
+    ftm = open('acc.pkl', 'wb')
+    pickle.dump(acc, ftm)
+    ftm.close()
+    print(len(acc))
+
+# deleteCache('tmp.pkl')
+
+
 max_features = 2000
-maxlen = 50  # cut texts after this number of words (among top max_features most common words)
+max_len = 50  # cut texts after this number of words (among top max_features most common words)
 batch_size = 32
 
 pn = 0
-# deleteCache('tmp.pkl')
 try:
     pn = loadCache('dict.pkl')
-except:
+except Exception as e:
+    print(e)
     print('No dict cache in tmp/. \nNow creating dict.....................................')
 if pn is 0:
     try:
         pn = createDict()
-    except:
+    except Exception as e:
+        print(e)
         print('create dict error')
         exit(0)
-# print(pn)
 
-pn['sent'] = list(sequence.pad_sequences(pn['sent'], maxlen=maxlen))
+pn['sent'] = list(sequence.pad_sequences(pn['sent'], maxlen=max_len))
 
 # 数据序列处理
-x = np.array(list(pn['sent']))[::2] #训练集
+x = np.array(list(pn['sent']))[::2]     # 训练集
 y = np.array(list(pn['mark']))[::2]
-xt = np.array(list(pn['sent']))[1::2] #测试集
+xt = np.array(list(pn['sent']))[1::2]   # 测试集
 yt = np.array(list(pn['mark']))[1::2]
-xa = np.array(list(pn['sent'])) #全集
+xa = np.array(list(pn['sent']))     # 全集
 ya = np.array(list(pn['mark']))
 # 将0->10 1->01
 y = np_utils.to_categorical(y, num_classes=2)
 yt = np_utils.to_categorical(yt, num_classes=2)
 
-model = createSimpleRNNModel(max_features)
+# 生成model
+# model = create_simpleRNN_model(max_features)
+
+# 生成测试数据
+
+# 训练model
 # model = trainModel(model, x, y, xt , yt,  batch_size=batch_size, epochs=20)
 
-# a = model.fit(x, y,
-#           batch_size=batch_size,
-#           epochs=1,
-#           validation_data=(xt, yt))
-
-# Another way to train
-BATCH_INDEX = 0
-BATCH_SIZE = 2000
-acc = []
-for step in range(500):
-   x_batch = x[BATCH_INDEX:BATCH_INDEX + BATCH_SIZE, :]
-   y_batch = y[BATCH_INDEX:BATCH_INDEX + BATCH_SIZE, :]
-   cost = model.train_on_batch(x_batch, y_batch)
-   BATCH_INDEX += BATCH_SIZE
-   BATCH_INDEX = 0 if BATCH_INDEX >= x.shape[0] else BATCH_INDEX
-   acc.append(cost[1])
-   # if step % 50 == 0:
-   #     print(cost[1])
-ftm = open('acc.pkl', 'wb')
-pickle.dump(acc, ftm)
-ftm.close()
-print(len(acc))
+# create_plt_data(model=model, x=x, y=y)
 
 # model.load_weights('tmp/model_weight')
 # acc = testModel(model, xt, yt)
 # print('\nacc: ', acc)
 
-# checkModel(model, acc)
+# check_model(model, acc)
 # model.history.history.values()
 # print(a.history['loss'])
 # print(a.history['acc'])
 
-
-
-# print('Finish')
+print('Finish')
 

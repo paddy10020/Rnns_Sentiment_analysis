@@ -11,8 +11,8 @@ from keras.utils import np_utils
 from keras.preprocessing import sequence
 
 
-from keras.models import Sequential,model_from_json, model_from_config, save_model, load_model
-from keras.layers.core import Dense, Dropout, Activation
+from keras.models import Sequential
+from keras.layers.core import Dense
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, SimpleRNN
 from keras.optimizers import Adam
@@ -34,7 +34,7 @@ def loadCache(fileName):
     fileTmp.close()
     return tmp
 
-# 生成test
+# 生成dict
 def createDict(negFileName='neg.xls', posFileName='pos.xls'):
     neg_txt = pd.read_excel('data/'+ negFileName, header=None, index_col=None)
     pos_txt = pd.read_excel('data/' + posFileName, header=None, index_col=None)
@@ -63,8 +63,10 @@ def createDict(negFileName='neg.xls', posFileName='pos.xls'):
     saveCache('test.pkl', tmp=pn)
     return pn
 
+
+
 # 建立rnn神经网络
-def createSimpleRNNModel(max_features=2000):
+def create_simplernn_model(max_features=2000):
     print('Build model...')
     model = Sequential()
     model.add(Embedding(max_features, 128))
@@ -116,7 +118,7 @@ y = np.array(list(pn['mark']))
 y = np_utils.to_categorical(y, num_classes=2)
 
 
-model = createSimpleRNNModel(max_features)
+model = create_simplernn_model(max_features)
 model.load_weights('tmp/model_weight')
 
 acc = testModel(model, x, y)
