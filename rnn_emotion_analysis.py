@@ -54,7 +54,7 @@ def createDict():
     w = []
     for i in d2b_train:
         w.extend(i)
-    # 统计此的出现次数
+    # 统计词的出现次数
     dict = pd.DataFrame(pd.Series(w).value_counts())
     del w, d2b_train
     dict['id'] = list(range(1, len(dict) + 1))
