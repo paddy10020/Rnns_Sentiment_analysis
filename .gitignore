@@ -1,0 +1,7 @@
+# 
+data/*
+tmp/*
+
+*.pkl
+*.txt
+*.xls
