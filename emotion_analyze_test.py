@@ -35,7 +35,7 @@ def loadCache(fileName):
     return tmp
 
 # 生成dict
-def createDict(negFileName='neg.xls', posFileName='pos.xls'):
+def createDict(negFileName='ch_neg.xls', posFileName='pos.xls'):
     neg_txt = pd.read_excel('data/'+ negFileName, header=None, index_col=None)
     pos_txt = pd.read_excel('data/' + posFileName, header=None, index_col=None)
     pos_txt['mark'] = 1
@@ -103,7 +103,7 @@ except:
     print('No cache in tmp/. \nNow creating test data.....................................')
 if pn is 0:
     try:
-        pn = createDict(negFileName='neg.xls', posFileName='pos.xls')
+        pn = createDict(negFileName='ch_neg.xls', posFileName='pos.xls')
     except:
         print('load create test data error')
         exit(0)

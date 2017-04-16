@@ -13,7 +13,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, GRU, SimpleRNN
 
 
-# neg=pd.read_excel('data/neg.xls',header=None,index=None)
+# neg=pd.read_excel('data/ch_neg.xls',header=None,index=None)
 # pos=pd.read_excel('data/pos.xls',header=None,index=None) #读取训练语料完毕
 # pos['mark']=1
 # neg['mark']=0 #给训练语料贴上标签

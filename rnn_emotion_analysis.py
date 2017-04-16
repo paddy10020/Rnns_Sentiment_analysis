@@ -38,7 +38,7 @@ def loadCache(fileName):
 
 # 生成dict
 def createDict():
-    neg_txt = pd.read_excel('data/neg.xls', header=None, index_col=None)
+    neg_txt = pd.read_excel('data/ch_neg.xls', header=None, index_col=None)
     pos_txt = pd.read_excel('data/pos.xls', header=None, index_col=None)
     pos_txt['mark'] = 1
     neg_txt['mark'] = 0

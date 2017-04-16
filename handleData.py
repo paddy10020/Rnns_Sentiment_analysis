@@ -7,9 +7,34 @@ import numpy as np
 import pandas as pd
 import jieba
 import pickle
-from tempfile import NamedTemporaryFile
-from pandas import Series
+from keras.utils import np_utils
+from keras.preprocessing import sequence
 
+
+from tempfile import NamedTemporaryFile
+
+# 删除Cache
+def deleteCache(fileName):
+    if os.path.exists(fileName):
+        os.remove(fileName)
+    else:
+        print('没有', fileName, '该文件')
+
+# 保存Cache
+def saveCache(fileName, tmp):
+    fileTmp = open(fileName, 'wb')
+    pickle.dump(tmp, fileTmp)
+    fileTmp.close()
+
+
+# 加载Cache
+def loadCache(fileName):
+    fileTmp = open(fileName, 'rb')
+    tmp = pickle.load(fileTmp)
+    fileTmp.close()
+    return tmp
+
+# 得到的数据缓存都会放大在tmp里面
 
 def txt2xls(files_path, xls_name, txt_encoding='gbk'):
     """
@@ -43,16 +68,12 @@ def txt2xls(files_path, xls_name, txt_encoding='gbk'):
 def clear_nan_repeat(file_name):
     """数据去重复和去空"""
     xls_file = pd.read_excel(file_name, header=None, index_col=None)
-    print(xls_file.duplicated())
-    xls2 = xls_file.drop_duplicates()
-    xls2 = xls2.dropna()
-    print(xls2.duplicated())
-    xls2.to_excel(file_name, sheet_name='0')
+    df = pd.DataFrame(xls_file)
+    df[0] = df.drop_duplicates()
+    # df.to_excel('data/test.xls', header=None, index=False)
+    df.to_excel(file_name, header=None, index=False)
 
-dir_path = 'data/neg/'
-xls_file_name = 'data/neg.xls'
-
-
+# 删除符号和停词
 def delete_unimportant(words):
     result = []
     # 加再停词表
@@ -75,26 +96,15 @@ def create_corpus(filename, inclination):
     txt = pd.read_excel(filename, header=None, index_col=None)
     txt['mark'] = inclination
     txt_len = len(txt)
-    print('neg len : ', txt_len)
+    print('txt len : ', txt_len)
     txt['sentence'] = txt[0]
     del txt[0]
     # 分词函数
     cut_word = lambda sentence: np.asarray(delete_unimportant(list(jieba.cut(sentence))), dtype=str)
-    # delete_unimport = lambda words:
-    txt_list = np.asarray(neg_txt['sentence'], dtype=str)
+    txt_list = np.asarray(txt['sentence'], dtype=str)
     txt_word = pd.Series(map(cut_word, txt_list))
     txt_word = pd.DataFrame(txt_word, )
     txt['words'] = txt_word
-    # 保存
-    txt_name = ''
-    if inclination is 0:
-        txt_name = 'neg_txt.pkl'
-    else:
-        txt_name = 'pos_txt.pkl'
-    ftm = open('tmp/' + txt_name, 'wb')
-    pickle.dump( txt, ftm)
-    ftm.close()
-    # print(neg_txt['words'])
     return txt
 
 # 创建词典，每个词对应的id是训练集的中词的出现次数，,id是每个词的排名
@@ -107,10 +117,6 @@ def create_dict(txt_list):
     # print(len(words_list))
     dict_tmp = pd.DataFrame(pd.Series(words_list).value_counts())
     dict_tmp['id'] = list(range(1, len(dict_tmp) + 1))
-    # 保存
-    ftm = open('tmp/dick.pkl', 'wb')
-    pickle.dump(dict_tmp, ftm)
-    ftm.close()
     return dict_tmp
 
 # 生成语句序列
@@ -119,23 +125,144 @@ def create_sequence(dict_tmp, train_data):
     train_data['sent'] = list(map(get_sent, train_data['words']))
     return train_data
 
-ftm = open('tmp/neg_txt.pkl', 'rb')
-neg_txt = pickle.load(ftm)
-ftm.close()
+# 把两个xls整个在一起
+def sum_xls(f1, f2):
+    pass
 
-dict_tmp = create_dict(neg_txt)
 
-# print(dict_tmp)
+# 训练数据处理(中文)
+class ch_train_data_pretreatment:
+    # 训练数据处理的对象
+    def __init__(self, neg_file='data/ch_neg.xls', pos_file='data/ch_pos.xls'):
+        # 训练的文本路径
+        self.neg_file = neg_file
+        self.pos_file = pos_file
+        self.max_features = 200
+        self.max_len = 50
+        self.batch_size = 32
+        self.sum_txt = None
+        self.pos_txt = None
+        self.neg_txt = None
+        self.data_aggregate = None
+        self.dictionary = None
+        self.x = None
+        self.y = None
+        self.x_train = None
+        self.y_train = None
+        self.x_test = None
+        self.y_test = None
 
-neg_txt = create_sequence(dict_tmp, neg_txt)
-print(neg_txt['sent'])
+    # 创建neg_txt
+    def get_neg_txt(self):
+        assert os.path.exists(self.neg_file), '在data文件夹里面不存在ch_neg.xls文件'
+        if not os.path.exists('tmp/ch_neg_txt.pkl'):
+            clear_nan_repeat(self.neg_file)  # 去重复和去空值
+            self.neg_txt = create_corpus(self.neg_file, 0)
+            # 保存
+            saveCache('tmp/ch_neg_txt.pkl', self.neg_txt)
+        else:
+            self.neg_txt = loadCache('tmp/ch_neg_txt.pkl')
 
-# 将txt转成xls
-# txt2xls(files_path=dir_path, xls_name=xls_file_name, txt_encoding='gbk')
-#clear_nan_repeat(xls_file_name)
-# 两个xls合并
-# df1 = pd.read_excel('', header=None, index_col=None)
-# df2 = pd.read_excel('', header=None, index_col=None)
-# df_sum = pd.concat([df1, df2])
+
+    def get_pos_txt(self):
+        assert os.path.exists(self.pos_file), '在data文件夹里面中不存在ch_pos.xls文件'
+        if not os.path.exists('tmp/ch_pos_txt.pkl'):
+            clear_nan_repeat(self.pos_file)   # 去重复和去空值
+            self.pos_txt = create_corpus(self.pos_file, 1)
+            # 保存
+            saveCache('tmp/ch_pos_txt.pkl', self.pos_txt)
+        else:
+            self.pos_txt = loadCache('tmp/ch_pos_txt.pkl')
+
+    def get_sum_txt(self):
+        if self.neg_txt is None:
+            self.get_neg_txt()
+        if self.pos_txt is None:
+            self.get_pos_txt()
+        self.sum_txt = pd.concat([self.neg_txt, self.pos_txt], ignore_index=True)
+
+
+    def get_dictionary(self):
+        if not os.path.exists('tmp/ch_dict.pkl'):
+            if self.sum_txt is None:
+                self.get_sum_txt()
+            self.dictionary = create_dict(self.sum_txt)
+            saveCache('tmp/ch_dict.pkl', self.dictionary)
+        else:
+            self.dictionary = loadCache('tmp/ch_dict.pkl')
+
+    def get_pos_sequence(self):
+        if self.dictionary is not None:
+            self.pos_txt = create_sequence(self.dictionary, self.pos_txt)
+        else:
+            self.get_dictionary()
+            self.pos_txt = create_sequence(self.dictionary, self.pos_txt)
+
+    def get_neg_sequence(self):
+        if self.dictionary is not None:
+            self.neg_txt = create_sequence(self.dictionary, self.neg_txt)
+        else:
+            self.get_dictionary()
+            self.neg_txt = create_sequence(self.dictionary, self.neg_txt)
+
+    def get_sum_sequence(self):
+        if self.dictionary is not None:
+            self.sum_txt = create_sequence(self.dictionary, self.sum_txt)
+        else:
+            self.get_dictionary()
+            self.sum_txt = create_sequence(self.dictionary, self.sum_txt)
+
+    def get_train_data(self):
+        try:
+            self.data_aggregate = list(sequence.pad_sequences(self.sum_txt['sent'], maxlen=self.max_len))
+            self.x =  np.array(list(self.data_aggregate))
+            self.y = np.array(list(self.sum_txt['mark']))
+            self.x_train = self.x[::2]
+            self.y_train = self.y[::2]
+            self.x_test = self.x[1::2]
+            self.y_test = self.y[1::2]
+            self.y = np_utils.to_categorical(self.y, num_classes=2)
+            self.y_train = np_utils.to_categorical(self.y_train, num_classes=2)
+            self.y_test = np_utils.to_categorical(self.y_test, num_classes=2)
+        except Exception as e:
+            print(e)
+
+
+
+# 训练数据处理（英文）
+class en_train_data_pretreatment:
+
+
+    def __init__(self, neg_file = 'data/ch_neg.xls', pos_file = 'data/pos.xls'):
+        self.neg_file = neg_file
+        self.pos_file = pos_file
+        self.max_features = 200
+        self.max_len = 50
+        self.batch_size = 32
+        self.sum_txt = None
+        self.pos_txt = None
+        self.neg_txt = None
+        self.data_aggregate = None
+        self.dictionary = None
+        self.x_test = None
+        self.y_test = None
+
+    def get_neg_txt(self):
+        assert os.path.exists(self.neg_file), '在data文件夹里面不存在en_neg.xls文件'
+        if not os.path.exists('tmp/en_neg_txt.pkl'):
+            clear_nan_repeat(self.neg_file) # 去重复和去空集
+            self.neg_txt =
+
+    def get_pos_txt(self):
+        assert os.path.exists(self.pos_file), '在data文件夹里面不存在en_pos.xls文件'
+
+
+
+if __name__ == '__main__':
+    # dir_path = 'data/neg/'
+    xls_file_name = 'data/ch_neg.xls'
+    clear_nan_repeat(xls_file_name)
+
+
 
 
