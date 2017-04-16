@@ -67,45 +67,69 @@ def delete_unimportant(words):
     del words
     return result
 
-# 创建字典
-def create_dict(filename):
-    neg_txt = pd.read_excel(filename, header=None, index_col=None)
-    neg_txt['mark'] = 0
-    neg_len = len(neg_txt)
-    print('neg len : ', neg_len)
-    del neg_txt[0]
-    neg_txt['sentence'] = neg_txt[1]
-    del neg_txt[1]
+# 创建训练集
+def create_corpus(filename, inclination):
+    # inclination: 感情倾向：1 / 0（1是积极，0是消极）
+    # example：
+    # neg_txt = create_corpus(xls_file_name, 1)
+    txt = pd.read_excel(filename, header=None, index_col=None)
+    txt['mark'] = inclination
+    txt_len = len(txt)
+    print('neg len : ', txt_len)
+    txt['sentence'] = txt[0]
+    del txt[0]
     # 分词函数
     cut_word = lambda sentence: np.asarray(delete_unimportant(list(jieba.cut(sentence))), dtype=str)
     # delete_unimport = lambda words:
     txt_list = np.asarray(neg_txt['sentence'], dtype=str)
-    neg_word = pd.Series(map(cut_word, txt_list))
-    neg_word = pd.DataFrame(neg_word, )
-    neg_txt['words'] = neg_word
+    txt_word = pd.Series(map(cut_word, txt_list))
+    txt_word = pd.DataFrame(txt_word, )
+    txt['words'] = txt_word
+    # 保存
+    txt_name = ''
+    if inclination is 0:
+        txt_name = 'neg_txt.pkl'
+    else:
+        txt_name = 'pos_txt.pkl'
+    ftm = open('tmp/' + txt_name, 'wb')
+    pickle.dump( txt, ftm)
+    ftm.close()
     # print(neg_txt['words'])
-    return neg_txt
+    return txt
 
-# 生成字典
-# neg_txt = create_dict(xls_file_name)
-# ftm = open('tmp/neg_txt.pkl', 'wb')
-# pickle.dump(neg_txt, ftm)
-# ftm.close()
+# 创建词典，每个词对应的id是训练集的中词的出现次数，,id是每个词的排名
+def create_dict(txt_list):
+    # example
+    # dict_tmp = create_dict(neg_txt)
+    words_list = []
+    for i in txt_list['words']:
+        words_list.extend(i)
+    # print(len(words_list))
+    dict_tmp = pd.DataFrame(pd.Series(words_list).value_counts())
+    dict_tmp['id'] = list(range(1, len(dict_tmp) + 1))
+    # 保存
+    ftm = open('tmp/dick.pkl', 'wb')
+    pickle.dump(dict_tmp, ftm)
+    ftm.close()
+    return dict_tmp
+
+# 生成语句序列
+def create_sequence(dict_tmp, train_data):
+    get_sent = lambda x: list(dict_tmp['id'][x])
+    train_data['sent'] = list(map(get_sent, train_data['words']))
+    return train_data
 
 ftm = open('tmp/neg_txt.pkl', 'rb')
 neg_txt = pickle.load(ftm)
 ftm.close()
-# print(neg_txt['words'])
-words_list = []
-for i in neg_txt['words']:
-    words_list.extend(i)
-print(len(words_list))
-dict_tmp = pd.DataFrame(pd.Series(words_list).value_counts())
-dict_tmp['id'] = list(range(1, len(dict_tmp) + 1))
-# print(dict_tmp['id'])
-get_sent = lambda x: list(dict_tmp['id'][x])
-neg_txt['sent'] = list(map(get_sent, neg_txt['words']))
+
+dict_tmp = create_dict(neg_txt)
+
+# print(dict_tmp)
+
+neg_txt = create_sequence(dict_tmp, neg_txt)
 print(neg_txt['sent'])
+
 # 将txt转成xls
 # txt2xls(files_path=dir_path, xls_name=xls_file_name, txt_encoding='gbk')
 #clear_nan_repeat(xls_file_name)
@@ -113,3 +137,5 @@ print(neg_txt['sent'])
 # df1 = pd.read_excel('', header=None, index_col=None)
 # df2 = pd.read_excel('', header=None, index_col=None)
 # df_sum = pd.concat([df1, df2])
+
+

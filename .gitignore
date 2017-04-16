@@ -1,7 +1,6 @@
-data/*
-tmp/*
-*.pkl
 *.txt
-*.wc
-neg/*
-pos/*
+.idea/
+data/
+neg/
+pos/
+tmp/
