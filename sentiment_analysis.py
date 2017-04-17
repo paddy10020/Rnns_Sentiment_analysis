@@ -1,17 +1,15 @@
 # -*- coding=utf-8 -*-
 
-
+import pandas as pd
 from handleData import ch_train_data_pretreatment
 import os
 import pickle
-import matplotlib.pyplot as plt
 
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN
 from keras.optimizers import Adam
-from keras.activations import softmax, sigmoid
 
 # 删除Cache
 def deleteCache(fileName):
@@ -128,7 +126,9 @@ class ch_train_model:
         # print(result)
         return result
 
-    def test(self):
+    def set_test_data(self, filename):
+        self.test_data = pd.read_excel(filename)
+
         pass
 
 
