@@ -155,6 +155,8 @@ class ch_train_data_pretreatment:
         self.y_train = None
         self.x_test = None
         self.y_test = None
+        self.test_data = None
+        self.test_sentence = None
 
     # 创建neg_txt
     def get_neg_txt(self):
@@ -259,6 +261,7 @@ class en_train_data_pretreatment:
         self.y_train = None
         self.x_test = None
         self.y_test = None
+        self.test_data = None
 
     def get_neg_txt(self):
         assert os.path.exists(self.neg_file), '在data文件夹里面不存在en_neg.xls文件'
@@ -303,6 +306,7 @@ class en_train_data_pretreatment:
             if self.sum_txt is None:
                 self.get_sum_txt()
             self.dictionary = loadCache('tmp/en_dict.pkl')
+
 
     # 创建序列
     def get_sequence(self, txt):
