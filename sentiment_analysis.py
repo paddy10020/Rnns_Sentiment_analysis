@@ -11,6 +11,7 @@ from keras.layers.core import Dense
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN
 from keras.optimizers import Adam
+from keras.activations import softmax, sigmoid
 
 # 删除Cache
 def deleteCache(fileName):
@@ -38,7 +39,7 @@ def create_simpleRNN_model(max_features=2000):
     print('Build model...')
     model = Sequential()
     model.add(Embedding(max_features, 128))
-    model.add(SimpleRNN(128, dropout=0.2, recurrent_dropout=0.2))
+    model.add(SimpleRNN(128, dropout=0.4))
     model.add(Dense(2, activation='sigmoid'))
 
     # 学习率
@@ -66,26 +67,6 @@ def testModel(model, x_test, y_test, batch_size=32):
     score, acc = model.evaluate(x_test, y_test, batch_size=batch_size,)
     return acc
 
-# 判断模型性能
-def check_model(model, acc):
-    if not os.path.exists('tmp/result.pkl'):
-        print('Saving model')
-        result = dict()
-        result['accuracy'] = acc
-        result['model'] = model.to_json()
-        saveCache('tmp/result.pkl', result)
-        model.save_weights('tmp/model_weight')
-    else:
-        result = dict()
-        result['accuracy'] = acc
-        result['model'] = model.to_json()
-        if loadCache('tmp/result.pkl')['accuracy'] < acc:
-            print('This model is better than before')
-            print('Saving model')
-            saveCache('tmp/result.pkl', result)
-            model.save_weights('tmp/model_weight')
-        else:
-            print('This model is not god.')
 
 # 英文训练模型
 class en_train_model:
@@ -98,11 +79,14 @@ class ch_train_model:
         self.train_neg_file = train_neg_file
         self.train_pos_file = train_pos_file
         self.train_data = ch_train_data_pretreatment(neg_file=self.train_neg_file, pos_file=self.train_pos_file)
-        self.test_data = None
+        self.train_data.get_sum_txt()
+        self.train_data.get_dictionary()
         # 创建序列
         self.train_data.get_sum_sequence()
         # 初始化训练数据
         self.train_data.get_train_data()
+        # 测试集合
+        self.test_data = None
         self.model = create_simpleRNN_model()
 
 
@@ -128,7 +112,7 @@ class ch_train_model:
                 print('This model is not god.')
 
     def train(self, epochs = 1):
-        self.model = trainModel(self.model, self.train_data.x_train, self.train_data.y_train, self.train_data.x_test, self.train_data.y_test, batch_size=self.train_data.batch_size, epochs=epochs)
+        self.model = trainModel(self.model, self.train_data.x, self.train_data.y, self.train_data.x_test, self.train_data.y_test, batch_size=self.train_data.batch_size, epochs=epochs)
         acc = testModel(self.model, self.train_data.x_test, self.train_data.y_test, batch_size=self.train_data.batch_size)
         print('\n测试集的正确率：', acc)
         self.ch_check_model(acc)
@@ -136,6 +120,13 @@ class ch_train_model:
     # 加载训练所得到的模型
     def load_model(self, model_file='tmp/ch_model_weight'):
         self.model.load_weights(model_file)
+
+    def one_sentence(self, txt, mark=1):
+        self.train_data.set_test_sentence(txt, mark)
+        test_sentence = self.train_data.test_sentence
+        result = self.model.predict(test_sentence['sent'])
+        # print(result)
+        return result
 
     def test(self):
         pass
@@ -145,9 +136,21 @@ class ch_train_model:
 
 if __name__ == '__main__':
 
-    rnns = ch_train_model()
-    rnns.train(1)
+    rnns = ch_train_model(train_neg_file='data/neg.xls', train_pos_file='data/pos.xls')
 
+    rnns.train(20)
+    rnns.load_model()
+    while True:
+        txt = input('请输入一句话:(no退出)')
+        if txt is 'no':
+            break
+        else:
+            result = rnns.one_sentence(txt, 1)
+            print(result)
+            if result[1] - result[0] >= 0.2:
+                print('好评')
+            else:
+                print('差评')
 
     print('Finish')
 

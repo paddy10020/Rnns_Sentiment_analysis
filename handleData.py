@@ -156,7 +156,7 @@ class ch_train_data_pretreatment:
         self.x_test = None
         self.y_test = None
         self.test_data = None
-        self.test_sentence = None
+        self.test_sentence = dict()
 
     # 创建neg_txt
     def get_neg_txt(self):
@@ -240,6 +240,33 @@ class ch_train_data_pretreatment:
         except Exception as e:
             print(e)
 
+    # 处理测试数据,带标记的
+    def set_test_data(self, txt_file):
+        clear_nan_repeat(txt_file)
+        self.test_data = pd.read_excel(txt_file, header=None, index_col=None)
+        self.test_data['sentence'] = self.test_data[0]
+        if self.dictionary is None:
+            self.get_dictionary()
+        cut_word = lambda sentence: np.asarray(delete_unimportant(list(jieba.cut(sentence))), dtype=str)
+        self.test_data['words'] = map(cut_word, self.test_data['sentence'])
+        self.test_data = create_sequence(self.dictionary, self.test_data)
+
+
+    # 将测试句子变成序列
+    def set_test_sentence(self, txt, mark):
+        self.test_sentence['sentence'] = txt
+        ftm = open('data/stop_word.txt', 'r', encoding='utf-8')
+        word_split = ' '
+        for i in ftm.readlines():
+            word_split += i
+        ftm.close()
+        self.test_sentence['words'] = delete_unimportant(list(jieba.cut(txt)))
+        get_sent = lambda x: list(self.dictionary['id'][x])
+        self.test_sentence['sent'] = list(get_sent(self.test_sentence['words']))
+        self.test_sentence['mark'] = mark
+        self.test_sentence['sent'] = sequence.pad_sequences([self.test_sentence['sent'],], maxlen=self.max_len)
+        self.test_sentence['mark'] = np_utils.to_categorical(self.test_sentence['mark'], num_classes=2)
+
 
 # 训练数据处理（英文）
 class en_train_data_pretreatment:
@@ -262,6 +289,7 @@ class en_train_data_pretreatment:
         self.x_test = None
         self.y_test = None
         self.test_data = None
+        self.test_sentence = None
 
     def get_neg_txt(self):
         assert os.path.exists(self.neg_file), '在data文件夹里面不存在en_neg.xls文件'
@@ -334,9 +362,15 @@ class en_train_data_pretreatment:
 
 
 if __name__ == '__main__':
-    xls_file_name = 'data/ch_neg.xls'
-    clear_nan_repeat(xls_file_name)
-
+    # xls_file_name = 'data/ch_neg.xls'
+    # clear_nan_repeat(xls_file_name)
+    test = ch_train_data_pretreatment()
+    test.get_sum_txt()
+    test.get_dictionary()
+    test.get_sum_sequence()
+    txt = input('请输入一句话:')
+    test.set_test_sentence(txt, 1)
+    print(test.test_sentence)
 
 
 
