@@ -73,6 +73,7 @@ def clear_nan_repeat(file_name):
     # df.to_excel('data/test.xls', header=None, index=False)
     df.to_excel(file_name, header=None, index=False)
 
+
 # 删除符号和停词
 def delete_unimportant(words):
     result = []
@@ -87,6 +88,7 @@ def delete_unimportant(words):
             result.append(words[i])
     del words
     return result
+
 
 # 创建训练集
 def create_corpus(filename, inclination):
@@ -107,6 +109,7 @@ def create_corpus(filename, inclination):
     txt['words'] = txt_word
     return txt
 
+
 # 创建词典，每个词对应的id是训练集的中词的出现次数，,id是每个词的排名
 def create_dict(txt_list):
     # example
@@ -118,6 +121,7 @@ def create_dict(txt_list):
     dict_tmp = pd.DataFrame(pd.Series(words_list).value_counts())
     dict_tmp['id'] = list(range(1, len(dict_tmp) + 1))
     return dict_tmp
+
 
 # 生成语句序列
 def create_sequence(dict_tmp, train_data):
@@ -175,12 +179,19 @@ class ch_train_data_pretreatment:
             self.pos_txt = loadCache('tmp/ch_pos_txt.pkl')
 
     def get_sum_txt(self):
-        if self.neg_txt is None:
-            self.get_neg_txt()
-        if self.pos_txt is None:
-            self.get_pos_txt()
-        self.sum_txt = pd.concat([self.neg_txt, self.pos_txt], ignore_index=True)
-
+        if os.path.exists('tmp/ch_sum_txt.pkl'):
+            self.sum_txt = loadCache('tmp/ch_sum_txt.pkl')
+            if self.neg_txt is None:
+                self.get_neg_txt()
+            if self.pos_txt is None:
+                self.get_pos_txt()
+        else:
+            if self.neg_txt is None:
+                self.get_neg_txt()
+            if self.pos_txt is None:
+                self.get_pos_txt()
+            self.sum_txt = pd.concat([self.neg_txt, self.pos_txt], ignore_index=True)
+            saveCache('tmp/ch_sum_txt.pkl', self.sum_txt)
 
     def get_dictionary(self):
         if not os.path.exists('tmp/ch_dict.pkl'):
@@ -215,7 +226,7 @@ class ch_train_data_pretreatment:
     def get_train_data(self):
         try:
             self.data_aggregate = list(sequence.pad_sequences(self.sum_txt['sent'], maxlen=self.max_len))
-            self.x =  np.array(list(self.data_aggregate))
+            self.x = np.array(list(self.data_aggregate))
             self.y = np.array(list(self.sum_txt['mark']))
             self.x_train = self.x[::2]
             self.y_train = self.y[::2]
@@ -228,12 +239,10 @@ class ch_train_data_pretreatment:
             print(e)
 
 
-
 # 训练数据处理（英文）
 class en_train_data_pretreatment:
 
-
-    def __init__(self, neg_file = 'data/ch_neg.xls', pos_file = 'data/pos.xls'):
+    def __init__(self, neg_file = 'data/ch_neg.xls', pos_file='data/pos.xls'):
         self.neg_file = neg_file
         self.pos_file = pos_file
         self.max_features = 200
@@ -244,22 +253,83 @@ class en_train_data_pretreatment:
         self.neg_txt = None
         self.data_aggregate = None
         self.dictionary = None
+        self.x = None
+        self.y = None
+        self.x_train = None
+        self.y_train = None
         self.x_test = None
         self.y_test = None
 
     def get_neg_txt(self):
         assert os.path.exists(self.neg_file), '在data文件夹里面不存在en_neg.xls文件'
         if not os.path.exists('tmp/en_neg_txt.pkl'):
-            clear_nan_repeat(self.neg_file) # 去重复和去空集
-            self.neg_txt =
+            clear_nan_repeat(self.neg_file)  # 去重复和去空集
+            self.neg_txt = create_corpus(self.neg_file, 0)
+            saveCache('tmp/en_neg_txt.pkl', self.neg_txt)
+        else:
+            self.neg_txt = loadCache('tmp/en_neg_txt.pkl')
 
     def get_pos_txt(self):
         assert os.path.exists(self.pos_file), '在data文件夹里面不存在en_pos.xls文件'
+        if not os.path.exists('tmp/en_pos_txt.pkl'):
+            clear_nan_repeat(self.pos_file)
+            self.pos_txt = create_corpus(self.pos_file, 1)
+            saveCache('tmp/en_pos_txt.pkl', self.pos_txt)
+        else:
+            self.pos_txt = loadCache('tmp/en_pos_txt.pkl')
 
+    def get_sum_txt(self):
+        if os.path.exists('tmp/en_sum_txt.pkl'):
+            self.sum_txt = loadCache('tmp/en_sum_txt.pkl')
+            if self.neg_txt is None:
+                self.get_neg_txt()
+            if self.pos_txt is None:
+                self.get_pos_txt()
+        else:
+            if self.neg_txt is None:
+                self.get_neg_txt()
+            if self.pos_txt is None:
+                self.get_pos_txt()
+            self.sum_txt = pd.concat([self.neg_txt, self.pos_txt], ignore_index=True)
+            saveCache('tmp/en_sum_txt.pkl', self.sum_txt)
+
+    def get_dictionary(self):
+        if not os.path.exists('tmp/en_dict.pkl'):
+            if self.sum_txt is None:
+                self.get_sum_txt()
+            self.dictionary = create_dict(self.sum_txt)
+            saveCache('tmp/en_dict.pkl', self.dictionary)
+        else:
+            if self.sum_txt is None:
+                self.get_sum_txt()
+            self.dictionary = loadCache('tmp/en_dict.pkl')
+
+    # 创建序列
+    def get_sequence(self, txt):
+        if self.dictionary is None:
+            self.get_dictionary()
+        txt = create_sequence(self.dictionary, txt)
+        return txt
+
+    # 获得训练数据
+    def get_train_data(self, txt):
+        txt = self.get_sequence(txt)
+        try:
+            self.data_aggregate = list(sequence.pad_sequences(txt['sent'], maxlen=self.max_len))
+            self.x = np.array(list(self.data_aggregate))
+            self.y = np.array(list(self.sum_txt['mark']))
+            self.x_train = self.x[::2]
+            self.y_train = self.y[::2]
+            self.x_test = self.x[1::2]
+            self.y_test = self.y[1::2]
+            self.y = np_utils.to_categorical(self.y, num_classes=2)
+            self.y_train = np_utils.to_categorical(self.y_train, num_classes=2)
+            self.y_test = np_utils.to_categorical(self.y_test, num_classes=2)
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':
-    # dir_path = 'data/neg/'
     xls_file_name = 'data/ch_neg.xls'
     clear_nan_repeat(xls_file_name)
 
