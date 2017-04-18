@@ -4,7 +4,9 @@ import pandas as pd
 from handleData import ch_train_data_pretreatment
 import os
 import pickle
+import numpy as np
 
+from keras.utils import np_utils
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.embeddings import Embedding
@@ -128,8 +130,11 @@ class ch_train_model:
 
     def set_test_data(self, filename):
         self.test_data = pd.read_excel(filename)
-
-        pass
+        test_data_x = np.asarray(self.test_data['sent'], dtype=int)
+        test_data_y = self.test_data['mark']
+        test_data_y = np_utils.to_categorical(test_data_y, num_classes=2)
+        acc = testModel(self.model, test_data_x, test_data_y)
+        return acc
 
 
 
@@ -138,19 +143,21 @@ if __name__ == '__main__':
 
     rnns = ch_train_model(train_neg_file='data/neg.xls', train_pos_file='data/pos.xls')
 
-    rnns.train(20)
+    # rnns.train(20)
     rnns.load_model()
-    while True:
-        txt = input('请输入一句话:(no退出)')
-        if txt is 'no':
-            break
-        else:
-            result = rnns.one_sentence(txt, 1)
-            print(result)
-            if result[1] - result[0] >= 0.2:
-                print('好评')
-            else:
-                print('差评')
+    acc = rnns.set_test_data('data/test_ch_neg1.xls')
+    print(acc)
+    # while True:
+    #     txt = input('请输入一句话:(no退出)')
+    #     if txt is 'no':
+    #         break
+    #     else:
+    #         result = rnns.one_sentence(txt, 1)
+    #         print(result)
+    #         if result[1] - result[0] >= 0.2:
+    #             print('好评')
+    #         else:
+    #             print('差评')
 
     print('Finish')
 

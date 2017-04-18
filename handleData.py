@@ -360,17 +360,25 @@ class en_train_data_pretreatment:
         except Exception as e:
             print(e)
 
+def set_test_data():
+    train_data = ch_train_data_pretreatment(neg_file='data/neg.xls', pos_file='data/pos.xls')
+    train_data.get_dictionary()
+    a = pd.DataFrame(pd.read_excel('data/test_ch_neg.xls', header=None, index_col=None)[0][2000:2500])
+    a['mark'] = 0
+    a['sentence'] = a[0]
+    del a[0]
+    cut_word = lambda sentence: np.asarray(delete_unimportant(list(jieba.cut(sentence))), dtype=str)
+    a['words'] = list(map(cut_word, a['sentence']))
+    a = create_sequence(dict_tmp=train_data.dictionary, train_data=a)
+    print(a['sent'])
+    # for i in a['sent']:
+    #     for j in i:
+    #         if j == :
+    #             print(j)
+    a['sent'] = sequence.pad_sequences(a['sent'], maxlen=50)
+    a.to_excel('data/test_ch_neg1.xls')
 
 if __name__ == '__main__':
     # xls_file_name = 'data/ch_neg.xls'
     # clear_nan_repeat(xls_file_name)
-    test = ch_train_data_pretreatment()
-    test.get_sum_txt()
-    test.get_dictionary()
-    test.get_sum_sequence()
-    txt = input('请输入一句话:')
-    test.set_test_sentence(txt, 1)
-    print(test.test_sentence)
-
-
-
+    set_test_data()
